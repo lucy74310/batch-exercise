@@ -3,6 +3,7 @@ package com.bgjo.batchexercise.batch.config;
 import com.bgjo.batchexercise.batch.item.FileToDBItemReader;
 import com.bgjo.batchexercise.batch.item.FileToDBItemWriter;
 import com.bgjo.batchexercise.model.TestVo;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
@@ -12,15 +13,17 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.database.JdbcBatchItemWriter;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
-import org.springframework.batch.repeat.support.TaskExecutorRepeatTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.batch.api.chunk.ItemReader;
+import javax.sql.DataSource;
 import java.io.File;
 import java.io.FileWriter;
 
@@ -34,6 +37,16 @@ public class BatchCongifuration {
     @Autowired
     private StepBuilderFactory stepBuilders;
 
+    @Autowired
+    private DataSource dataSource;
+//    public DataSource getDataSource() {
+//        DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create();
+//        dataSourceBuilder.driverClassName("org.postgresql.Driver");
+//        dataSourceBuilder.url("jdbc:postgresql://127.0.0.1:5432/test");
+//        dataSourceBuilder.username("postgres");
+//        dataSourceBuilder.password("rootpw");
+//        return dataSourceBuilder.build();
+//    }
 
     @Bean
     public Job fileToDBJob(@Qualifier("fileMakeStep") Step fileMakeStep,
@@ -47,31 +60,36 @@ public class BatchCongifuration {
     @Bean("fileToDBStep")
     public Step fileToDBStep(
         @Qualifier("fileToDBItemReader") FlatFileItemReader<TestVo> fileToDBItemReader,
-        @Qualifier("fileToDBItemWriter") ItemWriter<TestVo> fileToDBItemWriter,
+        @Qualifier("fileToDBWriter") JdbcBatchItemWriter<TestVo> fileToDBItemWriter,
         @Qualifier("fileToDBItemProcessor") ItemProcessor<TestVo, TestVo> fileToDBItemProcessor
     ) {
         return stepBuilders
-                .get("fileMakeStep")
+                .get("fileToDBStep")
                 .<TestVo, TestVo>chunk(2)
                 .reader( fileToDBItemReader )
                 .processor( fileToDBItemProcessor )
-                .writer( fileToDBItemWriter )
+                .writer(fileToDBItemWriter)
                 .build();
     }
-
     @Bean("fileToDBItemReader")
     public FlatFileItemReader<TestVo> fileToDBItemReader() {
         return new FileToDBItemReader<TestVo>();
     }
 
-    @Bean("fileToDBItemWriter")
-    public ItemWriter<TestVo> fileToDBItemWriter(){
+    @Bean("fileToDBWriter")
+    public JdbcBatchItemWriter<TestVo> fileToDBItemWriter(){
 //        return list -> {
 //            for(TestVo t : list) {
 //                log.info(t.toString());
 //            }
 //        };
-        return new FileToDBItemWriter<TestVo>();
+        JdbcBatchItemWriterBuilder<TestVo> jdbcBatchItemWriterBuilder= new JdbcBatchItemWriterBuilder<TestVo>();
+        return jdbcBatchItemWriterBuilder
+                .dataSource(dataSource)
+                .sql("insert into test.test(id, name, age, member_type) values (:id, :name, :age, :member_type)")
+                .beanMapped()
+                .build();
+//        return new FileToDBItemWriter<TestVo>();
     }
 
     @Bean("fileToDBItemProcessor")

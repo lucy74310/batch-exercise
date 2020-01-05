@@ -1,0 +1,11 @@
+logging:
+  level:
+    some-logger-name: debug
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:5432/test
+    username: postgres
+    password: rootpw
+  batch:
+    initialize-schema: never
